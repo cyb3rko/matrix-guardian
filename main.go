@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/chzyer/readline"
-	"github.com/rs/zerolog/log"
 	"matrix-guardian/db"
 	"matrix-guardian/util"
 	"matrix-guardian/validation"
@@ -17,8 +16,6 @@ import (
 	"time"
 )
 
-const commandPrefix = "!gd"
-
 var config Config
 var client *mautrix.Client
 var database *sql.DB
@@ -28,16 +25,16 @@ func main() {
 	config = readConfig()
 	database = db.InitDB()
 	client, withBatchToken := createClient()
-	fmt.Printf("Created client for %s\n", client.UserID.String())
 	_, err := readline.New("[no room]> ")
 	if err != nil {
 		panic(err)
 	}
 	syncer := client.Syncer.(*mautrix.DefaultSyncer)
-	syncer.OnEventType(event.EventMessage, onMessage)
+	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
+		onMessage(client, ctx, evt)
+	})
 	syncer.OnEventType(event.StateMember, onRoomInvite)
 
-	log.Info().Msg("Now running")
 	syncCtx, cancelSync := context.WithCancel(context.Background())
 	_, err = client.Login(syncCtx, &mautrix.ReqLogin{
 		Type:             "m.login.password",
@@ -50,7 +47,7 @@ func main() {
 	}
 	fmt.Println("Login successful")
 	list, err := client.JoinedRooms(syncCtx)
-	fmt.Printf("Joined rooms: %s\n", list.JoinedRooms)
+	util.Printf("Joined rooms: %s", list.JoinedRooms)
 	if !withBatchToken {
 		resp, err := client.FullSyncRequest(syncCtx, mautrix.ReqSync{
 			Since: fmt.Sprintf("s%d", time.Now().UnixMilli()),
@@ -70,6 +67,7 @@ func main() {
 			panic(err)
 		}
 	}
+	fmt.Println("Guarding is running...")
 	err = client.Sync()
 	go func() {
 
@@ -80,16 +78,35 @@ func main() {
 	}
 	cancelSync()
 	//err = cryptoHelper.Close()
+	err = database.Close()
 	if err != nil {
-		log.Error().Err(err).Msg("Error closing database")
+		fmt.Println("Error closing database")
 	}
 }
 
-func onMessage(ctx context.Context, evt *event.Event) {
+func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	if evt.RoomID == config.mngtRoomId {
-		onManagementMessage(evt)
-		return
+		if !config.testMode {
+			onManagementMessage(evt)
+		} else {
+			onProtectedRoomMessage(client, ctx, evt)
+		}
+	} else {
+		if !config.testMode {
+			onProtectedRoomMessage(client, ctx, evt)
+		}
 	}
+}
+
+func onManagementMessage(evt *event.Event) {
+	message := evt.Content.AsMessage().Body
+	if util.IsGuardianCommand(message) {
+		command, subcommands := util.ParseCommands(message)
+		util.Printf("Received management command: %s %s", command, subcommands)
+	}
+}
+
+func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	if evt.Sender.Localpart() == "cyb3rko" && strings.Contains(evt.Content.AsMessage().Body, "https://t.me") {
 		_, err := client.RedactEvent(ctx, evt.RoomID, evt.ID)
 		if err != nil {
@@ -98,30 +115,18 @@ func onMessage(ctx context.Context, evt *event.Event) {
 	}
 }
 
-func onManagementMessage(evt *event.Event) {
-	message := strings.TrimSpace(evt.Content.AsMessage().Body)
-	if message == commandPrefix { // !prefix
-		// TODO print help page
-		fmt.Printf("Received management command, showing help page")
-	} else if strings.HasPrefix(message, commandPrefix+" ") { // !prefix command
-		command := strings.TrimPrefix(message, commandPrefix+" ")
-		fmt.Printf("Received management command: %s", command)
-		// TODO progress commands
-	}
-}
-
 func onRoomInvite(ctx context.Context, evt *event.Event) {
 	if evt.GetStateKey() == client.UserID.String() && evt.Content.AsMember().Membership == event.MembershipInvite {
 		_, err := client.JoinRoomByID(ctx, evt.RoomID)
 		if err == nil {
-			fmt.Printf("Joined room after invite: %s", evt.RoomID.String())
+			util.Printf("Joined room after invite: %s", evt.RoomID.String())
 			//rl.SetPrompt(fmt.Sprintf("%s> ", lastRoomID))
 			//log.Info().
 			//	Str("room_id", evt.RoomID.String()).
 			//	Str("inviter", evt.Sender.String()).
 			//	Msg("Joined room after invite")
 		} else {
-			fmt.Printf("Failed to join room after invite: %s", evt.RoomID.String())
+			util.Printf("Failed to join room after invite: %s", evt.RoomID.String())
 			//log.Error().Err(err).
 			//	Str("room_id", evt.RoomID.String()).
 			//	Str("inviter", evt.Sender.String()).
@@ -152,8 +157,10 @@ func readConfig() Config {
 	username := util.GetEnv("GUARDIAN_USER", true, true)
 	password := util.GetEnv("GUARDIAN_PASSWORD", false, false)
 	mngtRoomId := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_ID", true, false)
+	testMode := util.GetEnv("GUARDIAN_TEST_MODE", true, true)
+	testModeBool := false
 	if !validation.IsValidUrl(homeserver) {
-		fmt.Printf("Invalid homeserver URL: %s\n", homeserver)
+		util.Printf("Invalid homeserver URL: %s", homeserver)
 		os.Exit(1)
 	}
 	if !validation.IsValidUsername(username) {
@@ -172,11 +179,15 @@ func readConfig() Config {
 		fmt.Println("No management room ID provided!")
 		os.Exit(1)
 	}
+	if testMode == "true" {
+		testModeBool = true
+	}
 	config = Config{
 		homeserver: homeserver,
 		username:   username,
 		password:   password,
 		mngtRoomId: id.RoomID(mngtRoomId),
+		testMode:   testModeBool,
 	}
 	return config
 }

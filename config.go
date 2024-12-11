@@ -7,4 +7,5 @@ type Config struct {
 	username   string
 	password   string
 	mngtRoomId id.RoomID
+	testMode   bool
 }
