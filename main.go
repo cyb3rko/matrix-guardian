@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"github.com/chzyer/readline"
 	"matrix-guardian/db"
+	"matrix-guardian/filter"
 	"matrix-guardian/util"
 	"matrix-guardian/validation"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -25,10 +25,10 @@ func main() {
 	config = readConfig()
 	database = db.InitDB()
 	client, withBatchToken := createClient()
-	_, err := readline.New("[no room]> ")
-	if err != nil {
-		panic(err)
-	}
+	//_, err := readline.New("[no room]> ")
+	//if err != nil {
+	//	panic(err)
+	//}
 	syncer := client.Syncer.(*mautrix.DefaultSyncer)
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
 		onMessage(client, ctx, evt)
@@ -36,7 +36,7 @@ func main() {
 	syncer.OnEventType(event.StateMember, onRoomInvite)
 
 	syncCtx, cancelSync := context.WithCancel(context.Background())
-	_, err = client.Login(syncCtx, &mautrix.ReqLogin{
+	_, err := client.Login(syncCtx, &mautrix.ReqLogin{
 		Type:             "m.login.password",
 		Identifier:       mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: config.username},
 		Password:         config.password,
@@ -47,7 +47,11 @@ func main() {
 	}
 	fmt.Println("Login successful")
 	list, err := client.JoinedRooms(syncCtx)
-	util.Printf("Joined rooms: %s", list.JoinedRooms)
+	if err == nil {
+		util.Printf("Joined rooms: %s", list.JoinedRooms)
+	} else {
+		util.Printf("No joined rooms found")
+	}
 	if !withBatchToken {
 		resp, err := client.FullSyncRequest(syncCtx, mautrix.ReqSync{
 			Since: fmt.Sprintf("s%d", time.Now().UnixMilli()),
@@ -85,13 +89,19 @@ func main() {
 }
 
 func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
+	// ignore own messages
+	if evt.Sender == client.UserID {
+		return
+	}
 	if evt.RoomID == config.mngtRoomId {
+		// message in management room
 		if !config.testMode {
 			onManagementMessage(evt)
 		} else {
 			onProtectedRoomMessage(client, ctx, evt)
 		}
 	} else {
+		// message in protected room
 		if !config.testMode {
 			onProtectedRoomMessage(client, ctx, evt)
 		}
@@ -107,11 +117,42 @@ func onManagementMessage(evt *event.Event) {
 }
 
 func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
-	if evt.Sender.Localpart() == "cyb3rko" && strings.Contains(evt.Content.AsMessage().Body, "https://t.me") {
-		_, err := client.RedactEvent(ctx, evt.RoomID, evt.ID)
-		if err != nil {
+	const keyMessageType = "msgtype"
+
+	contentJson, err := json.Marshal(evt.Content.Parsed)
+	var contentParsed map[string]interface{}
+	err = json.Unmarshal(contentJson, &contentParsed)
+	if err != nil {
+		return
+	}
+	messageType := contentParsed[keyMessageType]
+	if messageType == "m.text" || messageType == "m.notice" || messageType == "m.emote" {
+		if filter.IsUrlFiltered(database, &evt.Content) {
+			redactMessage(client, ctx, evt, "found blocklisted URL")
 			return
 		}
+	}
+}
+
+func redactMessage(client *mautrix.Client, ctx context.Context, evt *event.Event, reason string) {
+	_, err := client.RedactEvent(ctx, evt.RoomID, evt.ID)
+	if err != nil {
+		return
+	}
+	if !config.mngtRoomReports {
+		return
+	}
+	message := fmt.Sprintf("Message redacted - %s:<br/><blockquote>%s</blockquote>", reason, evt.Content.AsMessage().Body)
+	rawMessage := fmt.Sprintf("Message redacted - %s:%s", reason, evt.Content.AsMessage().Body)
+	contentJson := &event.MessageEventContent{
+		MsgType:       event.MsgNotice,
+		Format:        event.FormatHTML,
+		Body:          rawMessage,
+		FormattedBody: message,
+	}
+	_, err = client.SendMessageEvent(ctx, config.mngtRoomId, event.EventMessage, contentJson)
+	if err != nil {
+		return
 	}
 }
 
@@ -157,8 +198,11 @@ func readConfig() Config {
 	username := util.GetEnv("GUARDIAN_USER", true, true)
 	password := util.GetEnv("GUARDIAN_PASSWORD", false, false)
 	mngtRoomId := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_ID", true, false)
+	mngtRoomReports := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_REPORTS", true, true)
 	testMode := util.GetEnv("GUARDIAN_TEST_MODE", true, true)
+	mngtRoomReportsBool := true
 	testModeBool := false
+
 	if !validation.IsValidUrl(homeserver) {
 		util.Printf("Invalid homeserver URL: %s", homeserver)
 		os.Exit(1)
@@ -179,15 +223,20 @@ func readConfig() Config {
 		fmt.Println("No management room ID provided!")
 		os.Exit(1)
 	}
+	if mngtRoomReports == "false" {
+		mngtRoomReportsBool = false
+	}
 	if testMode == "true" {
 		testModeBool = true
+		fmt.Println("!!! Running in test mode !!!")
 	}
 	config = Config{
-		homeserver: homeserver,
-		username:   username,
-		password:   password,
-		mngtRoomId: id.RoomID(mngtRoomId),
-		testMode:   testModeBool,
+		homeserver:      homeserver,
+		username:        username,
+		password:        password,
+		mngtRoomId:      id.RoomID(mngtRoomId),
+		mngtRoomReports: mngtRoomReportsBool,
+		testMode:        testModeBool,
 	}
 	return config
 }
