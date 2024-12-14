@@ -5,6 +5,7 @@ import "strings"
 const commandPrefix = "!gd"
 
 func IsGuardianCommand(command string) bool {
+	command = strings.ToLower(command)
 	return command == commandPrefix || strings.HasPrefix(strings.TrimSpace(command), commandPrefix+" ")
 }
 

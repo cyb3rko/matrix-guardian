@@ -10,7 +10,7 @@ type table struct {
 }
 
 var tables = []table{
-	{"domains", "name TEXT PRIMARY KEY, count INT DEFAULT 0"},
+	{"domains", "name TEXT PRIMARY KEY, count INT"},
 	{"attributes", "key TEXT PRIMARY KEY, value TEXT"},
 }
 
@@ -38,6 +38,16 @@ func IsDomainBlocked(db *sql.DB, domain string) bool {
 	_, _ = db.Exec("UPDATE domains SET count = ? WHERE name = ?", count+1, domain)
 	// found in database, explicitly blocked
 	return true
+}
+
+func BlockDomain(db *sql.DB, domain string) bool {
+	_, err := db.Exec("INSERT INTO domains (name, count) values (?, 0)", domain)
+	return err == nil
+}
+
+func UnblockDomain(db *sql.DB, domain string) bool {
+	_, err := db.Exec("DELETE FROM domains WHERE name = ?", domain)
+	return err == nil
 }
 
 func createAllTables(db *sql.DB) {

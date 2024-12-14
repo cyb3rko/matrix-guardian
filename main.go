@@ -96,7 +96,7 @@ func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	if evt.RoomID == config.mngtRoomId {
 		// message in management room
 		if !config.testMode {
-			onManagementMessage(evt)
+			onManagementMessage(client, ctx, evt)
 		} else {
 			onProtectedRoomMessage(client, ctx, evt)
 		}
@@ -108,11 +108,31 @@ func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	}
 }
 
-func onManagementMessage(evt *event.Event) {
+func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	message := evt.Content.AsMessage().Body
 	if util.IsGuardianCommand(message) {
 		command, subcommands := util.ParseCommands(message)
 		util.Printf("Received management command: %s %s", command, subcommands)
+		switch command {
+		case "url":
+			if len(subcommands) > 0 {
+				switch subcommands[0] {
+				case "block":
+					if len(subcommands) == 2 {
+						db.BlockDomain(database, subcommands[1])
+						return
+					}
+				case "unblock":
+					if len(subcommands) == 2 {
+						db.UnblockDomain(database, subcommands[1])
+						return
+					}
+				}
+			}
+			ShowUrlHelp(client, ctx, config.mngtRoomId)
+		default:
+			ShowHelp(client, ctx, config.mngtRoomId)
+		}
 	}
 }
 
