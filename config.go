@@ -3,10 +3,16 @@ package main
 import "maunium.net/go/mautrix/id"
 
 type Config struct {
-	homeserver      string
-	username        string
-	password        string
-	mngtRoomId      id.RoomID
-	mngtRoomReports bool
-	testMode        bool
+	// REQUIRED //
+	homeserver string    // "GUARDIAN_HOMESERVER"
+	username   string    // "GUARDIAN_USERNAME"
+	password   string    // "GUARDIAN_PASSWORD"
+	mngtRoomId id.RoomID // "GUARDIAN_MANAGEMENT_ROOM_ID"
+	// OPTIONAL //
+	mngtRoomReports bool   // "GUARDIAN_MANAGEMENT_ROOM_REPORTS", default: true
+	testMode        bool   // "GUARDIAN_TEST_MODE",               default: false
+	virusTotalKey   string // "GUARDIAN_VIRUS_TOTAL_KEY",         default:
+	useUrlFilter    bool   // "GUARDIAN_URL_FILTER",              default: true
+	useUrlCheckVt   bool   // "GUARDIAN_URL_CHECK_VIRUS_TOTAL",   default: false
+	useUrlCheckFf   bool   // "GUARDIAN_URL_CHECK_FISHFISH",      default: false
 }

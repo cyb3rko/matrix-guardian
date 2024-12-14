@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"matrix-guardian/check"
 	"matrix-guardian/db"
 	"matrix-guardian/filter"
 	"matrix-guardian/util"
@@ -13,6 +14,7 @@ import (
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
 	"os"
+	"regexp"
 	"time"
 )
 
@@ -21,7 +23,7 @@ var client *mautrix.Client
 var database *sql.DB
 
 func main() {
-	fmt.Println("Hello human, Guardian is starting up!")
+	fmt.Println("Hello human, Guardian is starting up...")
 	config = readConfig()
 	database = db.InitDB()
 	client, withBatchToken := createClient()
@@ -147,8 +149,17 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 	}
 	messageType := contentParsed[keyMessageType]
 	if messageType == "m.text" || messageType == "m.notice" || messageType == "m.emote" {
-		if filter.IsUrlFiltered(database, &evt.Content) {
+		if !config.useUrlFilter && !config.useUrlCheckVt && !config.useUrlCheckFf {
+			return
+		}
+		reg := regexp.MustCompile(filter.RegexUrl)
+		urls := reg.FindAllString(evt.Content.AsMessage().Body, -1)
+		if config.useUrlFilter && filter.IsUrlFiltered(database, urls) {
 			redactMessage(client, ctx, evt, "found blocklisted URL")
+			return
+		}
+		if config.useUrlCheckVt && check.HasVirusTotalWarning(config.virusTotalKey, urls) {
+			redactMessage(client, ctx, evt, "found suspicious URL (VirusTotal)")
 			return
 		}
 	}
@@ -214,15 +225,23 @@ func createClient() (*mautrix.Client, bool) {
 }
 
 func readConfig() Config {
-	homeserver := util.GetEnv("GUARDIAN_HOME", true, true)
-	username := util.GetEnv("GUARDIAN_USER", true, true)
+	homeserver := util.GetEnv("GUARDIAN_HOMESERVER", true, true)
+	username := util.GetEnv("GUARDIAN_USERNAME", true, true)
 	password := util.GetEnv("GUARDIAN_PASSWORD", false, false)
 	mngtRoomId := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_ID", true, false)
 	mngtRoomReports := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_REPORTS", true, true)
 	testMode := util.GetEnv("GUARDIAN_TEST_MODE", true, true)
+	virusTotalKey := util.GetEnv("GUARDIAN_VIRUS_TOTAL_KEY", true, false)
+	useUrlFilter := util.GetEnv("GUARDIAN_URL_FILTER", true, true)
+	useUrlCheckVt := util.GetEnv("GUARDIAN_URL_CHECK_VIRUS_TOTAL", true, true)
+	useUrlCheckFf := util.GetEnv("GUARDIAN_URL_CHECK_FISHFISH", true, true)
 	mngtRoomReportsBool := true
 	testModeBool := false
+	useUrlFilterBool := true
+	useUrlCheckVtBool := false
+	useUrlCheckFfBool := false
 
+	// REQUIRED //
 	if !validation.IsValidUrl(homeserver) {
 		util.Printf("Invalid homeserver URL: %s", homeserver)
 		os.Exit(1)
@@ -243,6 +262,8 @@ func readConfig() Config {
 		fmt.Println("No management room ID provided!")
 		os.Exit(1)
 	}
+
+	// OPTIONAL //
 	if mngtRoomReports == "false" {
 		mngtRoomReportsBool = false
 	}
@@ -250,13 +271,33 @@ func readConfig() Config {
 		testModeBool = true
 		fmt.Println("!!! Running in test mode !!!")
 	}
+	if useUrlFilter == "false" {
+		useUrlFilterBool = false
+	}
+	if useUrlCheckVt == "true" {
+		if virusTotalKey == "" {
+			fmt.Println("No VirusTotal API key provided!")
+			os.Exit(1)
+		}
+		useUrlCheckVtBool = true
+	}
+	if useUrlCheckFf == "true" {
+		useUrlCheckFfBool = true
+	}
+
 	config = Config{
-		homeserver:      homeserver,
-		username:        username,
-		password:        password,
-		mngtRoomId:      id.RoomID(mngtRoomId),
+		// REQUIRED //
+		homeserver: homeserver,
+		username:   username,
+		password:   password,
+		mngtRoomId: id.RoomID(mngtRoomId),
+		// OPTIONAL //
 		mngtRoomReports: mngtRoomReportsBool,
 		testMode:        testModeBool,
+		virusTotalKey:   virusTotalKey,
+		useUrlFilter:    useUrlFilterBool,
+		useUrlCheckVt:   useUrlCheckVtBool,
+		useUrlCheckFf:   useUrlCheckFfBool,
 	}
 	return config
 }
