@@ -162,6 +162,10 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 			redactMessage(client, ctx, evt, "found suspicious URL (VirusTotal)")
 			return
 		}
+		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")
+		if err != nil {
+			return
+		}
 	}
 }
 
