@@ -1,6 +1,13 @@
 package main
 
-import "maunium.net/go/mautrix/id"
+import (
+	"fmt"
+	"maunium.net/go/mautrix/id"
+	"os"
+)
+
+const ConfigDefaultUsername = "yourcoolusername"
+const ConfigDefaultPassword = "yourVerySecurePassword"
 
 type Config struct {
 	// REQUIRED //
@@ -15,4 +22,11 @@ type Config struct {
 	useUrlFilter    bool   // "GUARDIAN_URL_FILTER",              default: true
 	useUrlCheckVt   bool   // "GUARDIAN_URL_CHECK_VIRUS_TOTAL",   default: false
 	useUrlCheckFf   bool   // "GUARDIAN_URL_CHECK_FISHFISH",      default: false
+}
+
+func CheckForDefaultConfig(username string, password string) {
+	if username == ConfigDefaultUsername && password == ConfigDefaultPassword {
+		fmt.Println("Default values found, please change them!")
+		os.Exit(1)
+	}
 }

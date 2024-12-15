@@ -258,10 +258,12 @@ func readConfig() Config {
 		fmt.Println("No username provided!")
 		os.Exit(1)
 	}
+	util.Printf("Greetings, %s!", username)
 	if password == "" {
 		fmt.Println("No password provided!")
 		os.Exit(1)
 	}
+	CheckForDefaultConfig(username, password)
 	if mngtRoomId == "" {
 		fmt.Println("No management room ID provided!")
 		os.Exit(1)

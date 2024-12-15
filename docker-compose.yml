@@ -1,0 +1,18 @@
+name: matrix-guardian
+services:
+  guardian:
+    container_name: guardian
+    image: guardian:latest
+    environment:
+      # REQUIRED
+      GUARDIAN_HOMESERVER: "https://matrix.org"
+      GUARDIAN_USERNAME: "yourCoolUsername"
+      GUARDIAN_PASSWORD: "yourVerySecurePassword"
+      GUARDIAN_MANAGEMENT_ROOM_ID: "!ABCdefGHIjklMNOpqr:matrix.org"
+      # Optional (defaults filled in)
+      GUARDIAN_MANAGEMENT_ROOM_REPORTS: true
+      GUARDIAN_TEST_MODE: false
+      GUARDIAN_VIRUS_TOTAL_KEY: ""
+      GUARDIAN_URL_FILTER: true
+      GUARDIAN_URL_CHECK_VIRUS_TOTAL: false
+      GUARDIAN_URL_CHECK_FISHFISH: false

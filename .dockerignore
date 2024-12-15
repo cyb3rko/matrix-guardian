@@ -1,0 +1,7 @@
+LICENSE
+.git
+.github
+.idea
+*.md
+*.yml
+*.sqlite
