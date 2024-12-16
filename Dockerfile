@@ -1,6 +1,11 @@
 # Multi-stage build
 FROM golang:alpine AS builder
 
+LABEL org.opencontainers.image.source=https://github.com/cyb3rko/matrix-guardian
+LABEL org.opencontainers.image.licenses=MPL-2.0
+LABEL org.opencontainers.image.title="Matrix Guardian"
+LABEL org.opencontainers.image.description="A friendly Matrix bot for protecting the people"
+
 # Move to working directory /build
 WORKDIR /build
 
@@ -20,4 +25,6 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 # Copy binary
 COPY --from=builder /build/app /app
+# Copy empty database directory
+COPY --from=builder /build/data /data
 ENTRYPOINT ["/app"]

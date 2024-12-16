@@ -2,7 +2,9 @@ name: matrix-guardian
 services:
   guardian:
     container_name: guardian
-    image: guardian:latest
+    image: "ghcr.io/cyb3rko/matrix-guardian:main"
+    volumes:
+      - guardian-data:/data
     environment:
       # REQUIRED
       GUARDIAN_HOMESERVER: "https://matrix.org"
@@ -16,3 +18,6 @@ services:
       GUARDIAN_URL_FILTER: true
       GUARDIAN_URL_CHECK_VIRUS_TOTAL: false
       GUARDIAN_URL_CHECK_FISHFISH: false
+
+volumes:
+  guardian-data:

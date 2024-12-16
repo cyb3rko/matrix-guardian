@@ -1,7 +1,9 @@
 LICENSE
 .git
+**/.gitkeep
 .github
 .idea
 *.md
 *.yml
-*.sqlite
+**/*.sqlite
+**/.DS_Store

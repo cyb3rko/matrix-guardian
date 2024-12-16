@@ -15,7 +15,7 @@ var tables = []table{
 }
 
 const driver = "sqlite3"
-const dbPath = "data.sqlite"
+const dbPath = "data/data.sqlite"
 
 func InitDB() *sql.DB {
 	database, err := sql.Open(driver, dbPath)

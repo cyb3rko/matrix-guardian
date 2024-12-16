@@ -1,0 +1,23 @@
+name: matrix-guardian
+services:
+  guardian:
+    container_name: guardian
+    image: guardian # local image
+    volumes:
+      - guardian-data:/data
+    environment:
+      # REQUIRED
+      GUARDIAN_HOMESERVER: ${GUARDIAN_HOMESERVER}
+      GUARDIAN_USERNAME: ${GUARDIAN_USERNAME}
+      GUARDIAN_PASSWORD: ${GUARDIAN_PASSWORD}
+      GUARDIAN_MANAGEMENT_ROOM_ID: ${GUARDIAN_MANAGEMENT_ROOM_ID}
+      # Optional (defaults filled in)
+      GUARDIAN_MANAGEMENT_ROOM_REPORTS: ${GUARDIAN_MANAGEMENT_ROOM_REPORTS}
+      GUARDIAN_TEST_MODE: ${GUARDIAN_TEST_MODE}
+      GUARDIAN_VIRUS_TOTAL_KEY: ${GUARDIAN_VIRUS_TOTAL_KEY}
+      GUARDIAN_URL_FILTER: ${GUARDIAN_URL_FILTER}
+      GUARDIAN_URL_CHECK_VIRUS_TOTAL: ${GUARDIAN_URL_CHECK_VIRUS_TOTAL}
+      GUARDIAN_URL_CHECK_FISHFISH: ${GUARDIAN_URL_CHECK_FISHFISH}
+
+volumes:
+  guardian-data:
