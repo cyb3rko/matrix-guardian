@@ -193,8 +193,8 @@ func redactMessage(client *mautrix.Client, ctx context.Context, evt *event.Event
 	if !config.mngtRoomReports {
 		return
 	}
-	message := fmt.Sprintf("Message redacted - %s:<br/><blockquote>%s</blockquote>", reason, evt.Content.AsMessage().Body)
-	rawMessage := fmt.Sprintf("Message redacted - %s:%s", reason, evt.Content.AsMessage().Body)
+	message := getRedactNotice(reason, evt)
+	rawMessage := getRawRedactNotice(reason, evt)
 	contentJson := &event.MessageEventContent{
 		MsgType:       event.MsgNotice,
 		Format:        event.FormatHTML,
@@ -205,6 +205,22 @@ func redactMessage(client *mautrix.Client, ctx context.Context, evt *event.Event
 	if err != nil {
 		return
 	}
+}
+
+func getRedactNotice(reason string, evt *event.Event) string {
+	roomId := evt.RoomID.String()
+	userId := evt.Sender.String()
+	template := "Message redacted - %s;<br/>" +
+		"User <a href='https://matrix.to/#/%s'>%s</a> in room <a href='https://matrix.to/#/%s'>%s</a> :<br/>" +
+		"<blockquote>%s</blockquote>"
+	return fmt.Sprintf(template, reason, userId, userId, roomId, roomId, evt.Content.AsMessage().Body)
+}
+
+func getRawRedactNotice(reason string, evt *event.Event) string {
+	roomId := evt.RoomID.String()
+	userId := evt.Sender.String()
+	template := "Message redacted - %s; User '%s' in room '%s': %s"
+	return fmt.Sprintf(template, reason, userId, roomId, evt.Content.AsMessage().Body)
 }
 
 func onRoomInvite(ctx context.Context, evt *event.Event) {
