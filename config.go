@@ -18,6 +18,7 @@ type Config struct {
 	// OPTIONAL //
 	mngtRoomReports bool   // "GUARDIAN_MANAGEMENT_ROOM_REPORTS", default: true
 	testMode        bool   // "GUARDIAN_TEST_MODE",               default: false
+	hiddenMode      bool   // "GUARDIAN_HIDDEN_MODE",             default: false
 	virusTotalKey   string // "GUARDIAN_VIRUS_TOTAL_KEY",         default:
 	useUrlFilter    bool   // "GUARDIAN_URL_FILTER",              default: true
 	useUrlCheckVt   bool   // "GUARDIAN_URL_CHECK_VIRUS_TOTAL",   default: false

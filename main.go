@@ -155,7 +155,12 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		reg := regexp.MustCompile(filter.RegexUrl)
 		urls := reg.FindAllString(evt.Content.AsMessage().Body, -1)
 		if len(urls) == 0 {
-			// TODO send read indicator
+			if !config.hiddenMode {
+				err := client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)
+				if err != nil {
+					return
+				}
+			}
 			return
 		}
 		if config.useUrlFilter && filter.IsUrlFiltered(database, urls) {
@@ -168,6 +173,9 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		}
 		if config.useUrlCheckFf && check.HasFishFishWarning(urls, client.UserID.String()) {
 			redactMessage(client, ctx, evt, "found suspicious URL (FishFish)")
+			return
+		}
+		if config.hiddenMode {
 			return
 		}
 		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")
@@ -243,12 +251,14 @@ func readConfig() Config {
 	mngtRoomId := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_ID", true, false)
 	mngtRoomReports := util.GetEnv("GUARDIAN_MANAGEMENT_ROOM_REPORTS", true, true)
 	testMode := util.GetEnv("GUARDIAN_TEST_MODE", true, true)
+	hiddenMode := util.GetEnv("GUARDIAN_HIDDEN_MODE", true, true)
 	virusTotalKey := util.GetEnv("GUARDIAN_VIRUS_TOTAL_KEY", true, false)
 	useUrlFilter := util.GetEnv("GUARDIAN_URL_FILTER", true, true)
 	useUrlCheckVt := util.GetEnv("GUARDIAN_URL_CHECK_VIRUS_TOTAL", true, true)
 	useUrlCheckFf := util.GetEnv("GUARDIAN_URL_CHECK_FISHFISH", true, true)
 	mngtRoomReportsBool := true
 	testModeBool := false
+	hiddenModeBool := false
 	useUrlFilterBool := true
 	useUrlCheckVtBool := false
 	useUrlCheckFfBool := false
@@ -285,6 +295,9 @@ func readConfig() Config {
 		testModeBool = true
 		fmt.Println("!!! Running in test mode !!!")
 	}
+	if hiddenMode == "true" {
+		hiddenModeBool = true
+	}
 	if useUrlFilter == "false" {
 		useUrlFilterBool = false
 	}
@@ -308,6 +321,7 @@ func readConfig() Config {
 		// OPTIONAL //
 		mngtRoomReports: mngtRoomReportsBool,
 		testMode:        testModeBool,
+		hiddenMode:      hiddenModeBool,
 		virusTotalKey:   virusTotalKey,
 		useUrlFilter:    useUrlFilterBool,
 		useUrlCheckVt:   useUrlCheckVtBool,
