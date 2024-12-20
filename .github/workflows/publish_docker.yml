@@ -3,7 +3,18 @@ name: Create and publish a Docker image
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches:
+      - "main"
+    paths-ignore:
+      - '.github/dependabot.yml'
+      - '.github/FUNDING.yml'
+      - '.gitignore'
+      - 'LICENSE'
+      - '**.md'
+      - '.editorconfig'
+      - '.idea/**'
+      - '.env_template'
+      - '.yml'
 
 # Defines two custom environment variables for the workflow.
 # These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
