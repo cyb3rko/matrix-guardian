@@ -154,12 +154,20 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		}
 		reg := regexp.MustCompile(filter.RegexUrl)
 		urls := reg.FindAllString(evt.Content.AsMessage().Body, -1)
+		if len(urls) == 0 {
+			// TODO send read indicator
+			return
+		}
 		if config.useUrlFilter && filter.IsUrlFiltered(database, urls) {
 			redactMessage(client, ctx, evt, "found blocklisted URL")
 			return
 		}
 		if config.useUrlCheckVt && check.HasVirusTotalWarning(config.virusTotalKey, urls) {
 			redactMessage(client, ctx, evt, "found suspicious URL (VirusTotal)")
+			return
+		}
+		if config.useUrlCheckFf && check.HasFishFishWarning(urls, client.UserID.String()) {
+			redactMessage(client, ctx, evt, "found suspicious URL (FishFish)")
 			return
 		}
 		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")

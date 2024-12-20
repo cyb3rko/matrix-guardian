@@ -9,14 +9,14 @@ import (
 func HasVirusTotalWarning(key string, urls []string) bool {
 	vtClient := vt.NewClient(key)
 	for _, url := range urls {
-		if checkSingleUrl(vtClient, url) {
+		if checkVtSingleUrl(vtClient, url) {
 			return true
 		}
 	}
 	return false
 }
 
-func checkSingleUrl(client *vt.Client, url string) bool {
+func checkVtSingleUrl(client *vt.Client, url string) bool {
 	urlId := base64.RawURLEncoding.EncodeToString([]byte(url))
 	report, err := client.Get(vt.URL("urls/%s", urlId))
 	if report == nil || err != nil {
