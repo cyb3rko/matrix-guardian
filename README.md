@@ -8,6 +8,7 @@
   - [URL Filter 🌐](#url-filter-)
   - [URL Phishing Check 🗡️](#url-phishing-check-)
     - [VirusTotal](#virustotal)
+    - [FishFish](#fishfish)
   - [planned] *File Type Filter* 📎
   - [planned] *File Virus Scan* 🦠
   - [planned] *Keyword Filter* 📄
@@ -42,6 +43,14 @@ The analysis can be powered by the following providers:
 
 VirusTotal allows scanning a full URL and returning a very comprehensive scan report.  
 Guardian rates a URL "suspicious" if the statistics `malicious` and `suspicious` have a combined score of 3 or more.
+
+#### FishFish
+
+**Reference**: https://fishfish.gg  
+**Activation (default: false)**: `GUARDIAN_URL_CHECK_FISHFISH: true|false`
+
+FishFish allows scanning a domain and returning a rating, if found in their reports.  
+Guardian rates a URL "suspicious" if the FishFish rating is `malware` or `phishing` rather than `safe`.
 
 ## Protected Public Rooms (Mentions)
 
