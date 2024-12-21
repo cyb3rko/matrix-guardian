@@ -19,6 +19,7 @@ services:
       GUARDIAN_URL_FILTER: true
       GUARDIAN_URL_CHECK_VIRUS_TOTAL: false
       GUARDIAN_URL_CHECK_FISHFISH: false
+      GUARDIAN_MIME_FILTER: true
 
 volumes:
   guardian-data:

@@ -23,6 +23,7 @@ type Config struct {
 	useUrlFilter    bool   // "GUARDIAN_URL_FILTER",              default: true
 	useUrlCheckVt   bool   // "GUARDIAN_URL_CHECK_VIRUS_TOTAL",   default: false
 	useUrlCheckFf   bool   // "GUARDIAN_URL_CHECK_FISHFISH",      default: false
+	useMimeFilter   bool   // "GUARDIAN_MIME_FILTER",             default: true
 }
 
 func CheckForDefaultConfig(username string, password string) {

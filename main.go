@@ -15,6 +15,7 @@ import (
 	"maunium.net/go/mautrix/id"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -132,6 +133,38 @@ func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event
 				}
 			}
 			ShowUrlHelp(client, ctx, config.mngtRoomId)
+		case "mime":
+			if len(subcommands) > 0 {
+				switch subcommands[0] {
+				case "block":
+					if len(subcommands) == 2 {
+						db.BlockMime(database, subcommands[1])
+						return
+					}
+				case "unblock":
+					if len(subcommands) == 2 {
+						db.UnblockMime(database, subcommands[1])
+						return
+					}
+				case "list":
+					if len(subcommands) == 1 {
+						list, err := db.ListMimes(database)
+						if err != nil {
+							return
+						}
+						message := fmt.Sprintf(
+							"Configured MIME types to block:\n%s",
+							strings.Join(list, "\n"),
+						)
+						_, err = client.SendNotice(ctx, evt.RoomID, message)
+						if err != nil {
+							return
+						}
+						return
+					}
+				}
+			}
+			ShowMimeHelp(client, ctx, config.mngtRoomId)
 		default:
 			ShowHelp(client, ctx, config.mngtRoomId)
 		}
@@ -140,6 +173,8 @@ func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event
 
 func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	const keyMessageType = "msgtype"
+	const keyInfo = "info"
+	const keyMimetype = "mimetype"
 
 	contentJson, err := json.Marshal(evt.Content.Parsed)
 	var contentParsed map[string]interface{}
@@ -149,6 +184,7 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 	}
 	messageType := contentParsed[keyMessageType]
 	if messageType == "m.text" || messageType == "m.notice" || messageType == "m.emote" {
+		// text message
 		if !config.useUrlFilter && !config.useUrlCheckVt && !config.useUrlCheckFf {
 			return
 		}
@@ -176,6 +212,35 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 			return
 		}
 		if config.hiddenMode {
+			return
+		}
+		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")
+		if err != nil {
+			return
+		}
+	} else {
+		// file message
+		if !config.useMimeFilter { // TODO check for file scan activation
+			return
+		}
+		messageInfo := contentParsed[keyInfo]
+		if messageInfo == nil {
+			return
+		}
+		mimetype := messageInfo.(map[string]interface{})[keyMimetype].(string)
+		if mimetype == "" {
+			return
+		}
+		if config.useMimeFilter && db.IsMimeBlocked(database, mimetype) {
+			redactMessage(client, ctx, evt, "found blocklisted mimetype")
+			return
+		}
+		if config.hiddenMode {
+			return
+		}
+		if strings.HasPrefix(mimetype, "image/") {
+			// don't show reaction in hidden mode and for images
+			_ = client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)
 			return
 		}
 		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")
@@ -272,12 +337,14 @@ func readConfig() Config {
 	useUrlFilter := util.GetEnv("GUARDIAN_URL_FILTER", true, true)
 	useUrlCheckVt := util.GetEnv("GUARDIAN_URL_CHECK_VIRUS_TOTAL", true, true)
 	useUrlCheckFf := util.GetEnv("GUARDIAN_URL_CHECK_FISHFISH", true, true)
+	useMimeFilter := util.GetEnv("GUARDIAN_MIME_FILTER", true, true)
 	mngtRoomReportsBool := true
 	testModeBool := false
 	hiddenModeBool := false
 	useUrlFilterBool := true
 	useUrlCheckVtBool := false
 	useUrlCheckFfBool := false
+	useMimeFilterBool := true
 
 	// REQUIRED //
 	if !validation.IsValidUrl(homeserver) {
@@ -327,6 +394,9 @@ func readConfig() Config {
 	if useUrlCheckFf == "true" {
 		useUrlCheckFfBool = true
 	}
+	if useMimeFilter == "false" {
+		useMimeFilterBool = false
+	}
 
 	config = Config{
 		// REQUIRED //
@@ -342,6 +412,7 @@ func readConfig() Config {
 		useUrlFilter:    useUrlFilterBool,
 		useUrlCheckVt:   useUrlCheckVtBool,
 		useUrlCheckFf:   useUrlCheckFfBool,
+		useMimeFilter:   useMimeFilterBool,
 	}
 	return config
 }

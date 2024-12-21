@@ -9,7 +9,7 @@
   - [URL Phishing Check 🗡️](#url-phishing-check-)
     - [VirusTotal](#virustotal)
     - [FishFish](#fishfish)
-  - [planned] *File Type Filter* 📎
+a  - [File MIME Type Filter 📎](#file-mime-type-filter-)
   - [planned] *File Virus Scan* 🦠
   - [planned] *Keyword Filter* 📄
 - [Protected Public Rooms (Mentions)](#protected-public-rooms-mentions)
@@ -27,8 +27,8 @@
 Guardian supports URL filtering based on a customizable domain list.
 
 **Examples**:
-- `!gd block t.me`
-- `!gd unblock t.me`
+- `!gd url block t.me`
+- `!gd url unblock t.me`
 
 ### URL Phishing Check 🗡
 
@@ -51,6 +51,18 @@ Guardian rates a URL "suspicious" if the statistics `malicious` and `suspicious`
 
 FishFish allows scanning a domain and returning a rating, if found in their reports.  
 Guardian rates a URL "suspicious" if the FishFish rating is `malware` or `phishing` rather than `safe`.
+
+### File MIME Type Filter 📎
+
+**Activation (default: true)**: `GUARDIAN_MIME_FILTER: true|false`  
+**Help Command**: `!gd mime`
+
+Guardian supports file MIME type filtering based on a customizable MIME type list.
+
+**Examples**:
+- `!gd mime block application/zip`
+- `!gd mime unblock application/zip`
+- `!gd mime list`
 
 ## Protected Public Rooms (Mentions)
 

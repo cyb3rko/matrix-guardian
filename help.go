@@ -19,6 +19,13 @@ const urlHelp = "🛡️ <b>Guardian Help Page [url]</b> 🛡️:<br/>" +
 	"<code>block <<domain>></code>: <i>Block domain in messages</i><br/>" +
 	"<code>unblock <<domain>></code>: <i>Unblock domain in messages</i>"
 
+const mimeHelp = "🛡️ <b>Guardian Help Page [mime]</b> 🛡️:<br/>" +
+	"<code>!gd mime <<args>></code><br/><br/>" +
+	"<b>Arguments</b>:<br/>" +
+	"<code>block <<mimetype>></code>: <i>Block MIME type in messages</i><br/>" +
+	"<code>unblock <<mimetype>></code>: <i>Unblock MIME type in messages</i><br/>" +
+	"<code>list</code>: <i>List blocked MIME type in messages</i>"
+
 func getRawMessage(source string) string {
 	source = strings.ReplaceAll(source, "<b>", "")
 	source = strings.ReplaceAll(source, "</b>", "")
@@ -58,4 +65,8 @@ func ShowHelp(client *mautrix.Client, ctx context.Context, mngtRoomId id.RoomID)
 
 func ShowUrlHelp(client *mautrix.Client, ctx context.Context, mngtRoomId id.RoomID) {
 	sendHtmlMessage(client, ctx, mngtRoomId, urlHelp)
+}
+
+func ShowMimeHelp(client *mautrix.Client, ctx context.Context, mngtRoomId id.RoomID) {
+	sendHtmlMessage(client, ctx, mngtRoomId, mimeHelp)
 }
