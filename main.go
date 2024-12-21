@@ -20,7 +20,6 @@ import (
 )
 
 var config Config
-var client *mautrix.Client
 var database *sql.DB
 
 func main() {
@@ -36,7 +35,9 @@ func main() {
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
 		onMessage(client, ctx, evt)
 	})
-	syncer.OnEventType(event.StateMember, onRoomInvite)
+	syncer.OnEventType(event.StateMember, func(ctx context.Context, evt *event.Event) {
+		onRoomInvite(client, ctx, evt)
+	})
 
 	syncCtx, cancelSync := context.WithCancel(context.Background())
 	_, err := client.Login(syncCtx, &mautrix.ReqLogin{
@@ -156,7 +157,7 @@ func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event
 							"Configured MIME types to block:\n%s",
 							strings.Join(list, "\n"),
 						)
-						_, err = client.SendNotice(ctx, evt.RoomID, message)
+						_, err = client.SendNotice(ctx, config.mngtRoomId, message)
 						if err != nil {
 							return
 						}
@@ -273,12 +274,12 @@ func redactMessage(client *mautrix.Client, ctx context.Context, evt *event.Event
 }
 
 func getRedactNotice(reason string, evt *event.Event) string {
-	roomId := evt.RoomID.String()
-	userId := evt.Sender.String()
+	roomId := evt.RoomID
+	userId := evt.Sender
 	template := "Message redacted - %s;<br/>" +
-		"User <a href='https://matrix.to/#/%s'>%s</a> in room <a href='https://matrix.to/#/%s'>%s</a> :<br/>" +
+		"User %s in room %s :<br/>" +
 		"<blockquote>%s</blockquote>"
-	return fmt.Sprintf(template, reason, userId, userId, roomId, roomId, evt.Content.AsMessage().Body)
+	return fmt.Sprintf(template, reason, util.GetUserHtmlUrl(userId), util.GetRoomHtmlUrl(roomId), evt.Content.AsMessage().Body)
 }
 
 func getRawRedactNotice(reason string, evt *event.Event) string {
@@ -288,22 +289,27 @@ func getRawRedactNotice(reason string, evt *event.Event) string {
 	return fmt.Sprintf(template, reason, userId, roomId, evt.Content.AsMessage().Body)
 }
 
-func onRoomInvite(ctx context.Context, evt *event.Event) {
+func onRoomInvite(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	if evt.GetStateKey() == client.UserID.String() && evt.Content.AsMember().Membership == event.MembershipInvite {
 		_, err := client.JoinRoomByID(ctx, evt.RoomID)
 		if err == nil {
-			util.Printf("Joined room after invite: %s", evt.RoomID.String())
-			//rl.SetPrompt(fmt.Sprintf("%s> ", lastRoomID))
-			//log.Info().
-			//	Str("room_id", evt.RoomID.String()).
-			//	Str("inviter", evt.Sender.String()).
-			//	Msg("Joined room after invite")
+			rawMessage := fmt.Sprintf("Joined room after invite: %s", evt.RoomID.String())
+			util.Print(rawMessage)
+			message := fmt.Sprintf(
+				"Guardian Note 🛡️:<br/>"+
+					"Joined room after invite: %s",
+				util.GetRoomHtmlUrl(evt.RoomID),
+			)
+			util.SendHtmlNotice(client, ctx, config.mngtRoomId, rawMessage, message)
 		} else {
-			util.Printf("Failed to join room after invite: %s", evt.RoomID.String())
-			//log.Error().Err(err).
-			//	Str("room_id", evt.RoomID.String()).
-			//	Str("inviter", evt.Sender.String()).
-			//	Msg("Failed to join room after invite")
+			rawMessage := fmt.Sprintf("Failed to join room after invite: %s", evt.RoomID.String())
+			util.Print(rawMessage)
+			message := fmt.Sprintf(
+				"Guardian Note 🛡️:<br/>"+
+					"Failed to join room after invite: %s",
+				util.GetRoomHtmlUrl(evt.RoomID),
+			)
+			util.SendHtmlNotice(client, ctx, config.mngtRoomId, rawMessage, message)
 		}
 	}
 }
