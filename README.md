@@ -9,7 +9,7 @@
   - [URL Phishing Check 🗡️](#url-phishing-check-)
     - [VirusTotal](#virustotal)
     - [FishFish](#fishfish)
-a  - [File MIME Type Filter 📎](#file-mime-type-filter-)
+  - [File MIME Type Filter 📎](#file-mime-type-filter-)
   - [planned] *File Virus Scan* 🦠
   - [planned] *Keyword Filter* 📄
 - [Protected Public Rooms (Mentions)](#protected-public-rooms-mentions)
