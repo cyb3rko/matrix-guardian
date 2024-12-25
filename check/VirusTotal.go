@@ -7,13 +7,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/VirusTotal/vt-go"
 	"io"
 	"mime/multipart"
 	"net/http"
 )
 
-const endpointFile = "https://www.virustotal.com/api/v3/files/%s"
+const endpointBase = "https://www.virustotal.com/api/v3/"
+const endpointUrl = endpointBase + "urls/%s"
+const endpointFile = endpointBase + "files/%s"
 
 func newRequest(key string, method string, url string, body io.ReadCloser) (*http.Request, error) {
 	var req *http.Request
@@ -47,24 +48,35 @@ func newRequest(key string, method string, url string, body io.ReadCloser) (*htt
 }
 
 func HasVirusTotalWarning(key string, urls []string) bool {
-	vtClient := vt.NewClient(key)
 	for _, url := range urls {
-		if checkVtSingleUrl(vtClient, url) {
+		if checkVtSingleUrl(key, url) {
 			return true
 		}
 	}
 	return false
 }
 
-func checkVtSingleUrl(client *vt.Client, url string) bool {
+func checkVtSingleUrl(key string, url string) bool {
 	urlId := base64.RawURLEncoding.EncodeToString([]byte(url))
-	report, err := client.Get(vt.URL("urls/%s", urlId))
+	req, err := newRequest(key, http.MethodGet, fmt.Sprintf(endpointUrl, urlId), nil)
+	if err != nil {
+		return false
+	}
+	report, err := http.DefaultClient.Do(req)
 	if report == nil || err != nil {
 		return false
 	}
+	var body []byte
+	if body, err = io.ReadAll(report.Body); err != nil {
+		return false
+	}
 	var result map[string]interface{}
-	err = json.Unmarshal(report.Data, &result)
-	attributes := result["attributes"]
+	err = json.Unmarshal(body, &result)
+	data := result["data"]
+	if _, valid := data.(map[string]interface{}); !valid {
+		return false
+	}
+	attributes := data.(map[string]interface{})["attributes"]
 	if _, valid := attributes.(map[string]interface{}); !valid {
 		return false
 	}

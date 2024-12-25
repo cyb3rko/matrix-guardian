@@ -3,7 +3,6 @@ module matrix-guardian
 go 1.23
 
 require (
-	github.com/VirusTotal/vt-go v1.0.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	maunium.net/go/mautrix v0.22.0
 )
@@ -13,7 +12,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect
-	github.com/thedevsaddam/gojsonq/v2 v2.5.2 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
