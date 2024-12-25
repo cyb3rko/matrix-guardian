@@ -176,6 +176,7 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 	const keyMessageType = "msgtype"
 	const keyInfo = "info"
 	const keyMimetype = "mimetype"
+	const keyAttachmentUrl = "url"
 
 	contentJson, err := json.Marshal(evt.Content.Parsed)
 	var contentParsed map[string]interface{}
@@ -221,27 +222,44 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		}
 	} else {
 		// file message
-		if !config.useMimeFilter { // TODO check for file scan activation
+		if !config.useMimeFilter && !config.useVirusCheckVt {
+			// skip file check when no related option is activated
 			return
 		}
-		messageInfo := contentParsed[keyInfo]
-		if messageInfo == nil {
-			return
-		}
-		mimetype := messageInfo.(map[string]interface{})[keyMimetype].(string)
-		if mimetype == "" {
-			return
-		}
-		if config.useMimeFilter && db.IsMimeBlocked(database, mimetype) {
-			redactMessage(client, ctx, evt, "found blocklisted mimetype")
-			return
-		}
-		if config.hiddenMode {
-			return
+		var mimetype string
+		if messageInfo, exists := contentParsed[keyInfo]; exists {
+			// try to extract file MIME type
+			if _, exists = messageInfo.(map[string]interface{})[keyMimetype]; exists {
+				mimetype = messageInfo.(map[string]interface{})[keyMimetype].(string)
+				if config.useMimeFilter && db.IsMimeBlocked(database, mimetype) {
+					redactMessage(client, ctx, evt, "found blocklisted MIME type")
+					return
+				}
+			}
 		}
 		if strings.HasPrefix(mimetype, "image/") {
-			// don't show reaction in hidden mode and for images
-			_ = client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)
+			// ignore images and don't show reaction emoji, only mark it as read
+			if !config.hiddenMode {
+				_ = client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)
+			}
+			return
+		}
+		if config.useVirusCheckVt {
+			messageAttachmentUrl := contentParsed[keyAttachmentUrl]
+			if messageAttachmentUrl != nil {
+				contentUri, err := id.ParseContentURI(messageAttachmentUrl.(string))
+				if err == nil {
+					download, err := client.Download(ctx, contentUri)
+					if err == nil && download != nil && download.Body != nil {
+						if check.HasVirusTotalFinding(config.virusTotalKey, download.Body) {
+							redactMessage(client, ctx, evt, "detected malicious file (VirusTotal)")
+							return
+						}
+					}
+				}
+			}
+		}
+		if config.hiddenMode {
 			return
 		}
 		_, err := client.SendReaction(ctx, evt.RoomID, evt.ID, "🛡️")
@@ -344,6 +362,7 @@ func readConfig() Config {
 	useUrlCheckVt := util.GetEnv("GUARDIAN_URL_CHECK_VIRUS_TOTAL", true, true)
 	useUrlCheckFf := util.GetEnv("GUARDIAN_URL_CHECK_FISHFISH", true, true)
 	useMimeFilter := util.GetEnv("GUARDIAN_MIME_FILTER", true, true)
+	useVirusCheckVt := util.GetEnv("GUARDIAN_VIRUS_CHECK_VIRUS_TOTAL", true, true)
 	mngtRoomReportsBool := true
 	testModeBool := false
 	hiddenModeBool := false
@@ -351,6 +370,7 @@ func readConfig() Config {
 	useUrlCheckVtBool := false
 	useUrlCheckFfBool := false
 	useMimeFilterBool := true
+	useVirusCheckVtBool := false
 
 	// REQUIRED //
 	if !validation.IsValidUrl(homeserver) {
@@ -403,6 +423,13 @@ func readConfig() Config {
 	if useMimeFilter == "false" {
 		useMimeFilterBool = false
 	}
+	if useVirusCheckVt == "true" {
+		if virusTotalKey == "" {
+			fmt.Println("No VirusTotal API key provided!")
+			os.Exit(1)
+		}
+		useVirusCheckVtBool = true
+	}
 
 	config = Config{
 		// REQUIRED //
@@ -419,6 +446,7 @@ func readConfig() Config {
 		useUrlCheckVt:   useUrlCheckVtBool,
 		useUrlCheckFf:   useUrlCheckFfBool,
 		useMimeFilter:   useMimeFilterBool,
+		useVirusCheckVt: useVirusCheckVtBool,
 	}
 	return config
 }

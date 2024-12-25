@@ -2,7 +2,7 @@ name: matrix-guardian
 services:
   guardian:
     container_name: guardian
-    image: guardian # local image
+    image: guardian-scratch # local image
     volumes:
       - guardian-data:/data
     environment:
@@ -20,6 +20,7 @@ services:
       GUARDIAN_URL_CHECK_VIRUS_TOTAL: ${GUARDIAN_URL_CHECK_VIRUS_TOTAL}
       GUARDIAN_URL_CHECK_FISHFISH: ${GUARDIAN_URL_CHECK_FISHFISH}
       GUARDIAN_MIME_FILTER: ${GUARDIAN_MIME_FILTER}
+      GUARDIAN_VIRUS_CHECK_VIRUS_TOTAL: ${GUARDIAN_VIRUS_CHECK_VIRUS_TOTAL}
 
 volumes:
   guardian-data:
