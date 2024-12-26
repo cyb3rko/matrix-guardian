@@ -15,6 +15,11 @@ type mimetype struct {
 	count int
 }
 
+type domain struct {
+	name  string
+	count int
+}
+
 var tables = []table{
 	{"domains", "name TEXT PRIMARY KEY, count INT"},
 	{"mimetypes", "name TEXT PRIMARY KEY, count INT"},
@@ -34,10 +39,8 @@ func InitDB() *sql.DB {
 }
 
 func IsDomainBlocked(db *sql.DB, domain string) bool {
-	query := db.QueryRow("SELECT count FROM domains WHERE name = ?", domain)
-	var count int
-	err := query.Scan(&count)
-	if err != nil {
+	found, count := findDomain(db, domain)
+	if !found {
 		// not found in database, implicitly allowed
 		return false
 	}
@@ -48,10 +51,8 @@ func IsDomainBlocked(db *sql.DB, domain string) bool {
 }
 
 func IsMimeBlocked(db *sql.DB, mime string) bool {
-	query := db.QueryRow("SELECT count FROM mimetypes WHERE name = ?", mime)
-	var count int
-	err := query.Scan(&count)
-	if err != nil {
+	found, count := findMime(db, mime)
+	if !found {
 		// not found in database, implicitly allowed
 		return false
 	}
@@ -61,24 +62,69 @@ func IsMimeBlocked(db *sql.DB, mime string) bool {
 	return true
 }
 
-func BlockDomain(db *sql.DB, domain string) bool {
+func BlockDomain(db *sql.DB, domain string) (bool, string) {
+	found, _ := findDomain(db, domain)
+	if found {
+		return false, "Domain already blocked"
+	}
 	_, err := db.Exec("INSERT INTO domains (name, count) values (?, 0)", domain)
-	return err == nil
+	return err == nil, ""
 }
 
-func UnblockDomain(db *sql.DB, domain string) bool {
+func UnblockDomain(db *sql.DB, domain string) (bool, string) {
+	found, _ := findDomain(db, domain)
+	if !found {
+		return false, "Domain not blocked"
+	}
 	_, err := db.Exec("DELETE FROM domains WHERE name = ?", domain)
-	return err == nil
+	if err == nil {
+		return true, ""
+	} else {
+		return false, fmt.Sprintf("Unblocking domain failed:\n%s", err)
+	}
 }
 
-func BlockMime(db *sql.DB, mime string) bool {
+func ListDomains(db *sql.DB) ([]string, error) {
+	query, err := db.Query("SELECT name, count FROM domains ORDER BY count DESC")
+	if err != nil {
+		return nil, err
+	}
+	var rows []string
+	for query.Next() {
+		var row domain
+		_ = query.Scan(&row.name, &row.count)
+		rows = append(rows, fmt.Sprintf("- %s (%d)", row.name, row.count))
+	}
+	return rows, nil
+}
+
+func findDomain(db *sql.DB, domain string) (bool, int) {
+	query := db.QueryRow("SELECT count FROM domains WHERE name = ?", domain)
+	var count int
+	err := query.Scan(&count)
+	return err == nil, count
+}
+
+func BlockMime(db *sql.DB, mime string) (bool, string) {
+	found, _ := findMime(db, mime)
+	if found {
+		return false, "MIME type already blocked"
+	}
 	_, err := db.Exec("INSERT INTO mimetypes (name, count) values (?, 0)", mime)
-	return err == nil
+	return err == nil, ""
 }
 
-func UnblockMime(db *sql.DB, mime string) bool {
+func UnblockMime(db *sql.DB, mime string) (bool, string) {
+	found, _ := findMime(db, mime)
+	if !found {
+		return false, "MIME type not blocked"
+	}
 	_, err := db.Exec("DELETE FROM mimetypes WHERE name = ?", mime)
-	return err == nil
+	if err == nil {
+		return true, ""
+	} else {
+		return false, fmt.Sprintf("Unblocking MIME type failed:\n%s", err)
+	}
 }
 
 func ListMimes(db *sql.DB) ([]string, error) {
@@ -93,6 +139,13 @@ func ListMimes(db *sql.DB) ([]string, error) {
 		rows = append(rows, fmt.Sprintf("- %s (%d)", row.name, row.count))
 	}
 	return rows, nil
+}
+
+func findMime(db *sql.DB, mime string) (bool, int) {
+	query := db.QueryRow("SELECT count FROM mimetypes WHERE name = ?", mime)
+	var count int
+	err := query.Scan(&count)
+	return err == nil, count
 }
 
 func createAllTables(db *sql.DB) {

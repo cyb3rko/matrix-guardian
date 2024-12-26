@@ -17,7 +17,8 @@ const urlHelp = "🛡️ <b>Guardian Help Page [url]</b> 🛡️:<br/>" +
 	"<code>!gd url <<args>></code><br/><br/>" +
 	"<b>Arguments</b>:<br/>" +
 	"<code>block <<domain>></code>: <i>Block domain in messages</i><br/>" +
-	"<code>unblock <<domain>></code>: <i>Unblock domain in messages</i>"
+	"<code>unblock <<domain>></code>: <i>Unblock domain in messages</i><br/>" +
+	"<code>list</code>: <i>List blocked domains in messages</i>"
 
 const mimeHelp = "🛡️ <b>Guardian Help Page [mime]</b> 🛡️:<br/>" +
 	"<code>!gd mime <<args>></code><br/><br/>" +

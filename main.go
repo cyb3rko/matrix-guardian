@@ -123,12 +123,40 @@ func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event
 				switch subcommands[0] {
 				case "block":
 					if len(subcommands) == 2 {
-						db.BlockDomain(database, subcommands[1])
+						success, response := db.BlockDomain(database, subcommands[1])
+						if success {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+						} else {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+							_, _ = client.SendNotice(ctx, evt.RoomID, response)
+						}
 						return
 					}
 				case "unblock":
 					if len(subcommands) == 2 {
-						db.UnblockDomain(database, subcommands[1])
+						success, response := db.UnblockDomain(database, subcommands[1])
+						if success {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+						} else {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+							_, _ = client.SendNotice(ctx, evt.RoomID, response)
+						}
+						return
+					}
+				case "list":
+					if len(subcommands) == 1 {
+						list, err := db.ListDomains(database)
+						if err != nil {
+							return
+						}
+						message := fmt.Sprintf(
+							"Configured domains to block:\n%s",
+							strings.Join(list, "\n"),
+						)
+						_, err = client.SendNotice(ctx, config.mngtRoomId, message)
+						if err != nil {
+							return
+						}
 						return
 					}
 				}
@@ -139,12 +167,24 @@ func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event
 				switch subcommands[0] {
 				case "block":
 					if len(subcommands) == 2 {
-						db.BlockMime(database, subcommands[1])
+						success, response := db.BlockMime(database, subcommands[1])
+						if success {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+						} else {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+							_, _ = client.SendNotice(ctx, evt.RoomID, response)
+						}
 						return
 					}
 				case "unblock":
 					if len(subcommands) == 2 {
-						db.UnblockMime(database, subcommands[1])
+						success, response := db.UnblockMime(database, subcommands[1])
+						if success {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+						} else {
+							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+							_, _ = client.SendNotice(ctx, evt.RoomID, response)
+						}
 						return
 					}
 				case "list":

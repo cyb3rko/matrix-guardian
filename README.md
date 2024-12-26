@@ -41,6 +41,7 @@ Guardian supports URL filtering based on a customizable domain list.
 **Examples**:
 - `!gd url block t.me`
 - `!gd url unblock t.me`
+- `!gd url list`
 
 ### URL Phishing Check 🗡
 
