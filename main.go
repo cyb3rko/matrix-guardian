@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/cyb3rko/matrix-botc/botc"
 	"matrix-guardian/check"
 	"matrix-guardian/db"
 	"matrix-guardian/filter"
@@ -38,8 +39,73 @@ func main() {
 	syncer.OnEventType(event.StateMember, func(ctx context.Context, evt *event.Event) {
 		onRoomInvite(client, ctx, evt)
 	})
-
 	syncCtx, cancelSync := context.WithCancel(context.Background())
+
+	commandMapping := map[string]botc.Command{
+		"url": {
+			false,
+			1,
+			nil,
+			func() { ShowUrlHelp(client, syncCtx, config.mngtRoomId) },
+			map[string]botc.Command{
+				"list": {
+					true,
+					0,
+					func(evt *event.Event, args []string) { onUrlList(client, syncCtx) },
+					nil,
+					nil,
+				},
+				"block": {
+					true,
+					1,
+					func(evt *event.Event, args []string) { onUrlBlock(client, syncCtx, database, evt, args) },
+					nil,
+					nil,
+				},
+				"unblock": {
+					true,
+					1,
+					func(evt *event.Event, args []string) { onUrlUnblock(client, syncCtx, evt, args) },
+					nil,
+					nil,
+				},
+			},
+		},
+		"mime": {
+			false,
+			1,
+			nil,
+			func() { ShowMimeHelp(client, syncCtx, config.mngtRoomId) },
+			map[string]botc.Command{
+				"list": {
+					true,
+					0,
+					func(evt *event.Event, args []string) { onMimeList(client, syncCtx) },
+					nil,
+					nil,
+				},
+				"block": {
+					true,
+					1,
+					func(evt *event.Event, args []string) { onMimeBlock(client, syncCtx, evt, args) },
+					nil,
+					nil,
+				},
+				"unblock": {
+					true,
+					1,
+					func(evt *event.Event, args []string) { onMimeUnblock(client, syncCtx, evt, args) },
+					nil,
+					nil,
+				},
+			},
+		},
+	}
+	botc.RegisterCommands(&botc.Config{
+		Prefix:       "!gd",
+		Mapping:      commandMapping,
+		HelpFunction: func() { ShowHelp(client, syncCtx, config.mngtRoomId) },
+	})
 	_, err := client.Login(syncCtx, &mautrix.ReqLogin{
 		Type:             "m.login.password",
 		Identifier:       mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: config.username},
@@ -100,7 +166,7 @@ func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	if evt.RoomID == config.mngtRoomId {
 		// message in management room
 		if !config.testMode {
-			onManagementMessage(client, ctx, evt)
+			onManagementMessage(evt)
 		} else {
 			onProtectedRoomMessage(client, ctx, evt)
 		}
@@ -112,104 +178,79 @@ func onMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
 	}
 }
 
-func onManagementMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
-	message := evt.Content.AsMessage().Body
-	if util.IsGuardianCommand(message) {
-		command, subcommands := util.ParseCommands(message)
-		util.Printf("Received management command: %s %s", command, subcommands)
-		switch command {
-		case "url":
-			if len(subcommands) > 0 {
-				switch subcommands[0] {
-				case "block":
-					if len(subcommands) == 2 {
-						success, response := db.BlockDomain(database, subcommands[1])
-						if success {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
-						} else {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
-							_, _ = client.SendNotice(ctx, evt.RoomID, response)
-						}
-						return
-					}
-				case "unblock":
-					if len(subcommands) == 2 {
-						success, response := db.UnblockDomain(database, subcommands[1])
-						if success {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
-						} else {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
-							_, _ = client.SendNotice(ctx, evt.RoomID, response)
-						}
-						return
-					}
-				case "list":
-					if len(subcommands) == 1 {
-						list, err := db.ListDomains(database)
-						if err != nil {
-							return
-						}
-						message := fmt.Sprintf(
-							"Configured domains to block:\n%s",
-							strings.Join(list, "\n"),
-						)
-						_, err = client.SendNotice(ctx, config.mngtRoomId, message)
-						if err != nil {
-							return
-						}
-						return
-					}
-				}
-			}
-			ShowUrlHelp(client, ctx, config.mngtRoomId)
-		case "mime":
-			if len(subcommands) > 0 {
-				switch subcommands[0] {
-				case "block":
-					if len(subcommands) == 2 {
-						success, response := db.BlockMime(database, subcommands[1])
-						if success {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
-						} else {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
-							_, _ = client.SendNotice(ctx, evt.RoomID, response)
-						}
-						return
-					}
-				case "unblock":
-					if len(subcommands) == 2 {
-						success, response := db.UnblockMime(database, subcommands[1])
-						if success {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
-						} else {
-							_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
-							_, _ = client.SendNotice(ctx, evt.RoomID, response)
-						}
-						return
-					}
-				case "list":
-					if len(subcommands) == 1 {
-						list, err := db.ListMimes(database)
-						if err != nil {
-							return
-						}
-						message := fmt.Sprintf(
-							"Configured MIME types to block:\n%s",
-							strings.Join(list, "\n"),
-						)
-						_, err = client.SendNotice(ctx, config.mngtRoomId, message)
-						if err != nil {
-							return
-						}
-						return
-					}
-				}
-			}
-			ShowMimeHelp(client, ctx, config.mngtRoomId)
-		default:
-			ShowHelp(client, ctx, config.mngtRoomId)
-		}
+func onManagementMessage(evt *event.Event) {
+	botc.ProcessCommandChain(evt.Content.AsMessage().Body, evt)
+}
+
+func onUrlList(client *mautrix.Client, ctx context.Context) {
+	list, err := db.ListDomains(database)
+	if err != nil {
+		return
 	}
+	message := fmt.Sprintf(
+		"Configured domains to block:\n%s",
+		strings.Join(list, "\n"),
+	)
+	_, _ = client.SendNotice(ctx, config.mngtRoomId, message)
+}
+
+func onUrlBlock(client *mautrix.Client, ctx context.Context, database *sql.DB, evt *event.Event, args []string) {
+	success, response := db.BlockDomain(database, args[0])
+	if success {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+	} else {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+		_, _ = client.SendNotice(ctx, evt.RoomID, response)
+	}
+}
+
+func onUrlUnblock(client *mautrix.Client, ctx context.Context, evt *event.Event, args []string) {
+	success, response := db.UnblockDomain(database, args[0])
+	if success {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+	} else {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+		_, _ = client.SendNotice(ctx, evt.RoomID, response)
+	}
+	return
+}
+
+func onMimeList(client *mautrix.Client, ctx context.Context) {
+	list, err := db.ListMimes(database)
+	if err != nil {
+		return
+	}
+	message := fmt.Sprintf(
+		"Configured MIME types to block:\n%s",
+		strings.Join(list, "\n"),
+	)
+	_, err = client.SendNotice(ctx, config.mngtRoomId, message)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func onMimeBlock(client *mautrix.Client, ctx context.Context, evt *event.Event, args []string) {
+	success, response := db.BlockMime(database, args[0])
+	if success {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+	} else {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+		_, _ = client.SendNotice(ctx, evt.RoomID, response)
+	}
+	return
+}
+
+func onMimeUnblock(client *mautrix.Client, ctx context.Context, evt *event.Event, args []string) {
+	success, response := db.UnblockMime(database, args[0])
+	if success {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "✅")
+	} else {
+		_, _ = client.SendReaction(ctx, evt.RoomID, evt.ID, "❌")
+		_, _ = client.SendNotice(ctx, evt.RoomID, response)
+	}
+	return
 }
 
 func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *event.Event) {
