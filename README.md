@@ -97,6 +97,8 @@ Guardian rates a URL "suspicious" if the statistic `malicious` is >1 or `suspici
 This list showcases some of the rooms who use the Matrix Guardian 🛡️:  
 *If you would like to add a room, please open an [issue](https://github.com/cyb3rko/matrix-guardian/issues)*
 
+- [CachyOS Community (tchncs.de)](https://matrix.to/#/#cachyos:tchncs.de)
+
 ## License
 
     This Source Code Form is subject to the terms of the Mozilla Public
