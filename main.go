@@ -272,7 +272,8 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 			return
 		}
 		reg := regexp.MustCompile(filter.RegexUrl)
-		urls := reg.FindAllString(evt.Content.AsMessage().Body, -1)
+		urlStrings := reg.FindAllString(evt.Content.AsMessage().Body, -1)
+		urls := filter.DropTrustedUrls(urlStrings)
 		if len(urls) == 0 {
 			if !config.hiddenMode {
 				err := client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)
@@ -286,11 +287,11 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 			redactMessage(client, ctx, evt, "found blocklisted URL")
 			return
 		}
-		if config.useUrlCheckVt && check.HasVirusTotalWarning(config.virusTotalKey, urls) {
+		if config.useUrlCheckVt && check.HasVirusTotalWarning(config.virusTotalKey, urlStrings) {
 			redactMessage(client, ctx, evt, "found suspicious URL (VirusTotal)")
 			return
 		}
-		if config.useUrlCheckFf && check.HasFishFishWarning(urls, client.UserID.String()) {
+		if config.useUrlCheckFf && check.HasFishFishWarning(urlStrings, client.UserID.String()) {
 			redactMessage(client, ctx, evt, "found suspicious URL (FishFish)")
 			return
 		}
