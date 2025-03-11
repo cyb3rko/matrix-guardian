@@ -271,8 +271,10 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		if !config.useUrlFilter && !config.useUrlCheckVt && !config.useUrlCheckFf {
 			return
 		}
+		body := evt.Content.AsMessage().Body
+		body = filter.DropMentionedUsers(body, evt.Content.AsMessage().Mentions)
 		reg := regexp.MustCompile(filter.RegexUrl)
-		urlStrings := reg.FindAllString(evt.Content.AsMessage().Body, -1)
+		urlStrings := reg.FindAllString(body, -1)
 		urls := filter.DropTrustedUrls(urlStrings)
 		if len(urls) == 0 {
 			if !config.hiddenMode {

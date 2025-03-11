@@ -3,6 +3,7 @@ package filter
 import (
 	"database/sql"
 	"matrix-guardian/db"
+	"maunium.net/go/mautrix/event"
 	"net/url"
 	"strings"
 )
@@ -35,6 +36,13 @@ func DropTrustedUrls(urls []string) []url.URL {
 		result = append(result, *parsedUrl)
 	}
 	return result
+}
+
+func DropMentionedUsers(body string, users *event.Mentions) string {
+	for _, user := range users.UserIDs {
+		body = strings.ReplaceAll(body, user.String(), "")
+	}
+	return body
 }
 
 func isDomainTrusted(domain string) bool {
