@@ -17,6 +17,7 @@
   - [File Virus Scan 🦠](#file-virus-scan-)
     - [VirusTotal](#virustotal-1)
   - [planned] *Keyword Filter* 📄
+- [Flowchart](#flowchart)
 - [Protected Public Rooms (Mentions)](#protected-public-rooms-mentions)
 - [License](#license)
 
@@ -91,6 +92,29 @@ The analysis can be powered by the following providers:
 
 VirusTotal allows passing a hash (Guardian uses sha256) and returning a related report if one exists.  
 Guardian rates a URL "suspicious" if the statistic `malicious` is >1 or `suspicious` is >3.
+
+## Flowchart
+
+The following chart explains how the Guardian handles messages and checks them step by step.
+
+```mermaid
+flowchart TB
+    classDef optional stroke-dasharray: 4 4
+
+    A@{ shape: rounded, label: "Receive new message" } --> B{"Message type"}
+    B -- Text --> D:::optional@{ shape: subproc, label: "URL filter" }
+    D -- Okay --> C:::optional@{ shape: subproc, label: "URL check (VirusTotal)" }
+    D -- Contains blocklisted URL --> Z@{ shape: dbl-circ, label: "Redact" }
+    C -- Okay --> F:::optional@{ shape: subproc, label: "URL check (FishFish)" }
+    C -- Contains suspicious URL --> Z
+    F -- Okay --> G@{ shape: dbl-circ, label: "Approve" }
+    F -- Contains suspicious URL --> Z
+    B -- Other --> E:::optional@{ shape: subproc, label: "MIME type filter" }
+    E -- Blocklisted MIME type --> Z
+    E -- Okay --> H:::optional@{ shape: subproc, label: "File virus scan (VirusTotal)" }
+    H -- Malicious file --> Z
+    H -- Okay --> I@{ shape: dbl-circ, label: "Approve" }
+```
 
 ## Protected Public Rooms (Mentions)
 
