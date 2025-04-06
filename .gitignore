@@ -31,5 +31,5 @@ go.work.sum
 # IDEs
 .idea
 
-# Database
-*.sqlite
+# Data directory
+data

@@ -2,38 +2,36 @@ package filter
 
 import (
 	"database/sql"
+	"github.com/joeguo/tldextract"
 	"matrix-guardian/db"
 	"maunium.net/go/mautrix/event"
-	"net/url"
 	"strings"
 )
 
 const RegexUrl = "[a-zA-Z0-9]+([\\-\\.]{1}[a-z0-9]+)*\\.[a-z]{2,5}(:[0-9]{1,5})?(\\/.*)?"
 
-func IsUrlFiltered(database *sql.DB, urls []url.URL) bool {
+func IsUrlFiltered(database *sql.DB, urls []string) bool {
 	for _, u := range urls {
-		if db.IsDomainBlocked(database, u.Host) {
+		if db.IsDomainBlocked(database, u) {
 			return true
 		}
 	}
 	return false
 }
 
-func DropTrustedUrls(urls []string) []url.URL {
-	var result []url.URL
+func ParseValidUrls(urls []string) []string {
+	var result []string
+	extract, _ := tldextract.New("data/tld.cache", true)
 	for _, u := range urls {
-		u = strings.ToLower(u)
-		if !strings.HasPrefix(u, "http") {
-			u = "http://" + u
-		}
-		parsedUrl, err := url.Parse(u)
-		if err != nil {
+		parsedUrl := extract.Extract(u)
+		if parsedUrl.Root == "" || parsedUrl.Tld == "" {
 			continue
 		}
-		if isDomainTrusted(parsedUrl.Host) {
+		urlString := parsedUrl.Root + "." + parsedUrl.Tld
+		if isDomainTrusted(urlString) {
 			continue
 		}
-		result = append(result, *parsedUrl)
+		result = append(result, urlString)
 	}
 	return result
 }

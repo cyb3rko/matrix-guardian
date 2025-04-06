@@ -275,7 +275,7 @@ func onProtectedRoomMessage(client *mautrix.Client, ctx context.Context, evt *ev
 		body = filter.DropMentionedUsers(body, evt.Content.AsMessage().Mentions)
 		reg := regexp.MustCompile(filter.RegexUrl)
 		urlStrings := reg.FindAllString(body, -1)
-		urls := filter.DropTrustedUrls(urlStrings)
+		urls := filter.ParseValidUrls(urlStrings)
 		if len(urls) == 0 {
 			if !config.hiddenMode {
 				err := client.SendReceipt(ctx, evt.RoomID, evt.ID, event.ReceiptTypeRead, nil)

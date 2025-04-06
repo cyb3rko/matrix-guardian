@@ -20,6 +20,8 @@ RUN apk add gcc musl-dev
 # Build the application (additional flags for external libraries on scratch; required for sqlite)
 RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o app
 
+RUN touch data/tld.cache
+
 FROM scratch
 # Copy TLS certificates to allow TLS traffic
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
