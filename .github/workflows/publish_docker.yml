@@ -12,13 +12,14 @@ on:
     paths-ignore:
       - '.github/dependabot.yml'
       - '.github/FUNDING.yml'
+      - '.graphics/**'
       - '.gitignore'
       - 'LICENSE'
       - '**.md'
       - '.editorconfig'
       - '.idea/**'
       - '.env_template'
-      - '.yml'
+      - '**.yml'
 
 env:
   REGISTRY: ghcr.io

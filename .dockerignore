@@ -2,6 +2,7 @@ LICENSE
 .git
 **/.gitkeep
 .github
+.graphics
 .idea
 *.md
 *.yml
