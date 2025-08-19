@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/cyb3rko/matrix-botc v0.1.1
 	github.com/joeguo/tldextract v0.0.0-20220507100122-d83daa6adef8
-	github.com/mattn/go-sqlite3 v1.14.31
+	github.com/mattn/go-sqlite3 v1.14.32
 	maunium.net/go/mautrix v0.23.3
 )
 
